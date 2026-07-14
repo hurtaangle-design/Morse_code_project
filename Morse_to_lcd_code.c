@@ -71,7 +71,7 @@ void Isr_TO(void) interrupt 1 {
 
 
 void initalize_system(void){
-		P3|=(0x03);       // set up P3.0 and P3.1 for buttons
+		P3|=(0x1C);       // set up P3.2 and P3.3 for buttons
     P1&=~(0x01);      // buz is off P1.0
     P1|=(1<<4);       // led is OFF attached to P1.4
 		TH0=0x06;
@@ -135,15 +135,15 @@ void main (void){
 
 	
 	while(1){
-		if ((P3 & 0x01) == 0) { 
+		if ((P3 & 0x04) == 0) { //new morse p3.2
 			delay_ms(20);
-			if ((P3 & 0x01) == 0) {    // Morse button P3.0 is pressed        
+			if ((P3 & 0x04) == 0) {    // Morse button P3.2 is pressed        
 				buzzer_active=1;// isr deals with sound now buzz is one
 				P1 &= ~(1<<4);//led on P1.4 is 0 low_lvl_logic
 				button_hold_time = 0;
 				start_tick = isr_tick_count;//we create the start tick
 		
-				while ((P3& 0x01)==0);
+				while ((P3& 0x04)==0);
 				
 				IE&=~(0x80);//EA=0
 				button_hold_time=(isr_tick_count-start_tick); 
@@ -170,17 +170,49 @@ void main (void){
 			}
 		}		
 		
-		if ((P3 & 0x02)== 0){
+		if ((P3 & 0x08)== 0){//new enter button p3.3
 			delay_ms(20);
-			if ((P3 & 0x02)== 0){
+			if ((P3 & 0x08)== 0){
 				if(morse_index>0){
 					decode_and_print();
 					lcd_update_top_row();
 				}
-				while((P3 & 0x02)==0);
+				while((P3 & 0x08)==0);
 				delay_ms(20);
-			}
+			} 
 		}
+		if ((P3 & 0x10) == 0) { //new clear button
+			delay_ms(20); //hold
+			if ((P3 & 0x10) == 0) {
+        start_tick = isr_tick_count;
+        
+        while ((P3 & 0x10) == 0); // Wait for user to let go
+        
+        IE &= ~(0x80);//interupt off
+        button_hold_time = (isr_tick_count - start_tick); //counts the ticks
+        IE |= (0x80);//interrupt back on  
+        delay_ms(20); //hold delay
+        if (button_hold_time < 800) {//if the button is pressed it will just clear the top row
+           
+            morse_index = 0;
+            current_morse[0] = '\0';
+            lcd_update_top_row();
+        } 
+        else {
+            morse_index = 0;//if held everything is cleared
+            current_morse[0] = '\0';
+            bottom_cursor = 0;
+            
+            lcd_cmd(0x01);
+            delay_ms(2);  
+            lcd_update_top_row();
+        }
+    }
+}		
+		
+		
+		
+		
 	
 	}
 }
